@@ -135,8 +135,14 @@ tasks.register("wasmWasiNodePipeE2eTest") {
         val result = project.execCaptured(
             command = listOf(node.absolutePath, entryPath),
             stdinUtf8 = "node-line\n",
+            ignoreExitValue = true,
         )
         val expected = "Wasm received: node-line\n"
+        if (result.exitCode != 0) {
+            throw GradleException(
+                "Node pipe run failed.\nExit: ${result.exitCode}\nStdout: ${result.stdout}\nStderr: ${result.stderr}",
+            )
+        }
         if (result.stdout != expected) {
             throw GradleException(
                 "Unexpected Node stdout.\nExpected: $expected\nActual: ${result.stdout}\nStderr: ${result.stderr}",
