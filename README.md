@@ -14,109 +14,51 @@ Kotlin/Wasm WASI project that reads from `stdin` and prints each line:
   - `node` (good for piped input, limited interactive behavior)
   - `wasmer` (can be installed, but does not currently support the Wasm GC features used by this binary)
 
-## Test locally
-
-### 1) Quick build
+## Quick start
 
 ```bash
+# 1) Build project artifacts
 ./gradlew assemble
-```
 
-### 2) Default run (Wasmtime, interactive)
-
-```bash
+# 2) Run with default runtime (Wasmtime, interactive stdin)
 ./gradlew runWasm
+
+# 3) Run with Node runtime (pipe mode)
+printf "hello\n" | ./gradlew runWasm -Pruntime=node
 ```
 
-Then type lines in your terminal.
+Use `-Pdebug=true` to enable debug logs and `-PmaxLineBytes=262144` to override the default 1 MiB line limit.
 
-### 3) Test with piped stdin (UTF-8)
+## Runtimes
 
-```bash
-printf "hello\naççents\nこんにちは\n" | ./gradlew runWasm
-```
-
-### 4) Node runtime
-
-```bash
-printf "via-node\nline2\n" | ./gradlew runWasm -Pruntime=node
-```
-
-Note: this mode is mainly intended for piped input, not reliable interactive TTY input.
-
-### 5) Wasmer runtime (expected behavior: explicit failure)
-
-```bash
-./gradlew runWasm -Pruntime=wasmer
-```
-
-The build fails on purpose with a clear message about the current Wasm GC limitation.
-
-### 6) Invalid runtime (validation)
-
-```bash
-./gradlew runWasm -Pruntime=foo
-```
-
-Expected error: `Unknown runtime 'foo'. Use one of: node, wasmtime, wasmer.`
+- **Wasmtime**: default and recommended runtime (`./gradlew runWasm`), works for interactive stdin.
+- **Node**: pipe-oriented mode (`printf "hello\n" | ./gradlew runWasm -Pruntime=node`), interactive TTY input is not supported in this setup.
+- **Wasmer**: currently expected to fail fast (`./gradlew runWasm -Pruntime=wasmer`) because stable Wasmer does not yet support the required Wasm GC features.
 
 ## Tests
 
-Run WASI Node tests:
-
-```bash
-./gradlew wasmWasiNodeTest
-```
-
-If nothing appears, the task is often `UP-TO-DATE`.
-
-Force real execution:
-
 ```bash
 ./gradlew wasmWasiNodeTest --rerun-tasks
+./gradlew wasmWasiE2eTest
+./gradlew wasmWasiNodePipeE2eTest
 ```
 
-Show more logs:
+## CI
+
+GitHub Actions workflow: `.github/workflows/ci.yml`
+
+It runs on push/PR with separate jobs for build, Node tests, Wasmtime e2e checks, and release packaging.
+
+## Release artifacts
+
+Create distributable artifacts and checksums:
 
 ```bash
-./gradlew wasmWasiNodeTest --rerun-tasks --info
+./gradlew packageWasmRelease
 ```
 
-## Check the generated binary
+Generated files in `build/distributions`:
 
-```bash
-ls -lh build/compileSync/wasmWasi/main/productionExecutable/optimized/non-browser-wasm.wasm
-file build/compileSync/wasmWasi/main/productionExecutable/optimized/non-browser-wasm.wasm
-```
-
-## Test with Docker
-
-### 1) Build image
-
-```bash
-docker build -t non-browser-wasm .
-```
-
-### 2) Interactive run (TTY)
-
-```bash
-docker run --rm -it non-browser-wasm
-```
-
-### 3) Non-interactive run (pipe)
-
-```bash
-printf "hello\ndocker\n" | docker run --rm -i non-browser-wasm
-```
-
-## Useful command recap
-
-```bash
-./gradlew runWasm
-printf "hello\n" | ./gradlew runWasm
-printf "hello\n" | ./gradlew runWasm -Pruntime=node
-./gradlew runWasm -Pruntime=wasmer
-./gradlew wasmWasiNodeTest --rerun-tasks --info
-docker build -t non-browser-wasm .
-docker run --rm -it non-browser-wasm
-```
+- `non-browser-wasm.wasm`
+- `non-browser-wasm.mjs`
+- `SHA256SUMS.txt`
