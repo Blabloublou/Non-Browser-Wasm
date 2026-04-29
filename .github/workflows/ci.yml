@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Install Wasmtime
+        run: |
+          curl -fsSL https://wasmtime.dev/install.sh | bash
+          echo "$HOME/.wasmtime/bin" >> "$GITHUB_PATH"
+
+      - name: Verify runtimes
+        run: |
+          java -version
+          node --version
+          wasmtime --version
+
+      - name: Build
+        run: ./gradlew --no-daemon assemble
+
+  unit-and-node:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Node pipe tests
+        run: ./gradlew --no-daemon wasmWasiNodeTest wasmWasiNodePipeE2eTest
+
+  e2e-wasmtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Install Wasmtime
+        run: |
+          curl -fsSL https://wasmtime.dev/install.sh | bash
+          echo "$HOME/.wasmtime/bin" >> "$GITHUB_PATH"
+
+      - name: Wasmtime e2e
+        run: ./gradlew --no-daemon wasmWasiE2eTest
+
+  package-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Build release artifacts
+        run: ./gradlew --no-daemon packageWasmRelease
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-release
+          path: |
+            build/distributions/non-browser-wasm.wasm
+            build/distributions/non-browser-wasm.mjs
+            build/distributions/SHA256SUMS.txt
